@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+    <Button android:text="Execute!" android:id="@+id/executeBtn" android:layout_width="match_parent" android:layout_height="wrap_content"></Button>
+    <EditText android:layout_width="match_parent" android:layout_height="fill_parent" android:layout_weight="1" android:id="@+id/source" android:longClickable="true" android:typeface="monospace" android:scrollbars="vertical" android:text='print("Hello World!")' android:textSize="12sp" android:gravity="top|left"></EditText>
+    <TextView android:text="TextView" android:layout_width="match_parent" android:id="@+id/statusText" android:layout_height="wrap_content" android:scrollbars="vertical" android:maxLines="5" android:textColor="@android:color/secondary_text_dark_nodisable"></TextView>
+</LinearLayout>
