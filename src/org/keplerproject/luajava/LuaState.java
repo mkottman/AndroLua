@@ -1166,4 +1166,19 @@ public class LuaState
     // if all checks fail, return null
     return null;	  
 	}
+
+	public String dumpStack() {
+		int n = getTop();
+		StringBuilder sb = new StringBuilder();
+		for (int i = 1; i <= n; i++) {
+			int t = type(i);
+			sb.append(i).append(": ").append(typeName(t));
+			if (t == LUA_TNUMBER)
+				sb.append(" = ").append(toNumber(i));
+			else if (t == LUA_TSTRING)
+				sb.append(" = '").append(toString(i)).append("'");
+			sb.append("\n");
+		}
+		return sb.toString();
+	}
 }
