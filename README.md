@@ -43,12 +43,21 @@ The UI consist of the following:
 * a text editor, where you can write Lua code, conveniently preloaded with the classic "Hello World!" example. A long click on the whole editor will clear it.
 * a status/output window, that shows the output of 'print' function, and is scrollable should there be many lines of output
 
-You can also write code by connecting to the TCP port 3333 of the device. You can do that either directly by using WiFi, or through the USB cable. For that you need to run the following:
+You can also work interactively by connecting to the TCP port 3333 of the device. You can do that either directly by using WiFi, or through the USB cable. For that you need to run the following:
 
     $SDK/platform-tools/adb forward tcp:3333 tcp:3333
 
-and then connect to localhost:3333. For example:
+In this version, there is a simple client `interp.lua` that uses LuaSocket. By default it will initially read stuff from `init.lua`.
 
-    cat test/sieve.lua | nc localhost 3333
+For example:
 
-The text sent through TCP will be appended to the text in the edit box. Then you only need to press "Execute" to run the code and enjoy the output.
+	$ lua interp.lua
+	loading init.lua
+	
+	> = activity
+	sk.kottman.androlua.Main@405166c0
+	> for i = 1,4 do print(i) end
+	1
+	2
+	3
+	4
