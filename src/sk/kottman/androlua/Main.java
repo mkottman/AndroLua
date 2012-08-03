@@ -1,12 +1,6 @@
 package sk.kottman.androlua;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -18,6 +12,7 @@ import org.keplerproject.luajava.LuaStateFactory;
 import android.app.Activity;
 import android.content.res.AssetManager;
 import android.os.Bundle;
+import android.util.*;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
@@ -33,9 +28,13 @@ public class Main extends Activity implements OnClickListener,
 	private final static int LISTEN_PORT = 3333;
 
 	Button execute;
-	EditText source;
-	TextView status;
-	LuaState L;
+	
+	// public so we can play with these from Lua
+	public EditText source;
+	public TextView status;
+	public LuaState L;
+	
+	final StringBuilder output = new StringBuilder();
 
 	Handler handler;
 	ServerThread serverThread;
@@ -61,7 +60,7 @@ public class Main extends Activity implements OnClickListener,
 
 		source = (EditText) findViewById(R.id.source);
 		source.setOnLongClickListener(this);
-		source.setText("require 'greet'\ngreet.hello('world')\n");
+		source.setText("require 'import'\nprint(Math:sin(2.3))\n");
 
 		status = (TextView) findViewById(R.id.statusText);
 		status.setMovementMethod(ScrollingMovementMethod.getInstance());
@@ -78,17 +77,25 @@ public class Main extends Activity implements OnClickListener,
 			JavaFunction print = new JavaFunction(L) {
 				@Override
 				public int execute() throws LuaException {
-					StringBuilder sb = new StringBuilder();
 					for (int i = 2; i <= L.getTop(); i++) {
 						int type = L.type(i);
-						String val = L.toString(i);
+						String stype = L.typeName(type);
+						String val = null;
+						if (stype.equals("userdata")) {
+							Object obj = L.toJavaObject(i);
+							if (obj != null)
+								val = obj.toString();
+						} else if (stype.equals("boolean")) {
+							val = L.toBoolean(i) ? "true" : "false";
+						} else {
+							val = L.toString(i);
+						}
 						if (val == null)
-							val = L.typeName(type);
-						sb.append(val);
-						sb.append("\t");
+							val = stype;						
+						output.append(val);
+						output.append("\t");
 					}
-					sb.append("\n");
-					status.append(sb.toString());
+					output.append("\n");					
 					return 0;
 				}
 			};
@@ -159,15 +166,34 @@ public class Main extends Activity implements OnClickListener,
 					Socket client = server.accept();
 					BufferedReader in = new BufferedReader(
 							new InputStreamReader(client.getInputStream()));
+					final PrintWriter out = new PrintWriter(client.getOutputStream());
 					String line = null;
 					while (!stopped && (line = in.readLine()) != null) {
-						final String s = line;
-						handler.post(new Runnable() {
-							@Override
-							public void run() {
-								source.append(s + "\n");
-							}
-						});
+						final String s = line.replace('\001', '\n');
+						if (s.startsWith("--mod:")) {
+							int i1 = s.indexOf(':'), i2 = s.indexOf('\n');
+							String mod = s.substring(i1+1,i2); 
+							String file = getFilesDir()+"/"+mod.replace('.', '/')+".lua";
+							FileWriter fw = new FileWriter(file);
+							fw.write(s);
+							fw.close();	
+							// package.loaded[mod] = nil
+							L.getGlobal("package");
+							L.getField(-1, "loaded");
+							L.pushNil();
+							L.setField(-2, mod);
+							out.println("wrote " + file + "\n");
+							out.flush();
+						} else {
+							handler.post(new Runnable() {
+								public void run() {
+									String res = safeEvalLua(s);
+									res = res.replace('\n', '\001');
+									out.println(res);
+									out.flush();
+								}
+							});
+						}
 					}
 				}
 				server.close();
@@ -183,13 +209,19 @@ public class Main extends Activity implements OnClickListener,
 				}
 			});
 		}
+	}	
+
+	String safeEvalLua(String src) {
+		String res = null;	
+		try {
+			res = evalLua(src);
+		} catch(LuaException e) {
+			res = e.getMessage()+"\n";
+		}
+		return res;		
 	}
-
-	@Override
-	public void onClick(View view) {
-		String src = source.getText().toString();
-
-		status.setText("");
+	
+	String evalLua(String src) throws LuaException {
 		L.setTop(0);
 		int ok = L.LloadString(src);
 		if (ok == 0) {
@@ -198,14 +230,28 @@ public class Main extends Activity implements OnClickListener,
 			L.remove(-2);
 			L.insert(-2);
 			ok = L.pcall(0, 0, -2);
-			if (ok == 0) {
-				status.append("Finished succesfully");
-				return;
+			if (ok == 0) {				
+				String res = output.toString();
+				output.setLength(0);
+				return res;
 			}
 		}
+		throw new LuaException(errorReason(ok) + ": " + L.toString(-1));
+		//return null;		
+		
+	}
 
-		String reason = errorReason(ok);
-		Toast.makeText(this, reason + ": " + L.toString(-1), Toast.LENGTH_LONG).show();
+	public void onClick(View view) {
+		String src = source.getText().toString();
+		status.setText("");
+		try {
+			String res = evalLua(src);
+			status.append(res);
+			status.append("Finished succesfully");
+		} catch(LuaException e) {			
+			Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();			
+		}
+
 	}
 
 	private String errorReason(int error) {
@@ -222,7 +268,6 @@ public class Main extends Activity implements OnClickListener,
 		return "Unknown error " + error;
 	}
 
-	@Override
 	public boolean onLongClick(View view) {
 		source.setText("");
 		return true;
