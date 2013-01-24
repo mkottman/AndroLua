@@ -94,7 +94,7 @@
 	".\\?.dll;"  LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
 
 #else
-#define LUA_ROOT	"/usr/"
+#define LUA_ROOT	"/usr/local/"
 #define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
 #define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
 #define LUA_PATH_DEFAULT  \
@@ -756,7 +756,6 @@ union luai_Cast { double l_d; long l_l; };
 ** Local configuration. You can use this space to add your redefinitions
 ** without modifying the main part of the file.
 */
-
 
 
 #endif

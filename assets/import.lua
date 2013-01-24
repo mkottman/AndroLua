@@ -50,7 +50,7 @@ local globalMT = {
                 local class = import_class(classname,p..classname)
                 if class then return class end
 			end
-            print("import cannot find "..classname)
+            error("import cannot find "..classname)
 	end
 }
 setmetatable(_G, globalMT)
